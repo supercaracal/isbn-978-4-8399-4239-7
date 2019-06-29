@@ -76,7 +76,7 @@ main(int argc, char **argv) {
   struct node *n;
 
   if (argc < 2) {
-    fprintf(stderr, "%s\n", "uasge: 1-9 foo bar baz");
+    fprintf(stderr, "%s\n", "uasge: 2-1 foo bar baz");
     exit(1);
   }
 
