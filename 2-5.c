@@ -3,9 +3,11 @@
 
 #define CHAR2INT(n) (n - '0')
 #define INT2CHAR(c) ('0' + c)
+#define FIRST_CALL 1
 
 struct node {
   int digit;
+  int carry;
   struct node *next;
 };
 
@@ -15,6 +17,7 @@ build_list_from_str(char *num) {
 
   n = (struct node *) malloc(sizeof(struct node));
   n->digit = CHAR2INT(*num++);
+  n->carry = 0;
   n->next = *num ? build_list_from_str(num) : NULL;
   return n;
 }
@@ -31,11 +34,14 @@ build_list_from_int(int num) {
   n = (struct node *) malloc(sizeof(struct node));
   n->digit = r;
   n->next = NULL;
-  if (q == 0) return n;
-
-  m = build_list_from_int(q);
-  m->next = n;
-  return m;
+  if (q < 10) {
+    n->carry = q;
+    return n;
+  } else {
+    m = build_list_from_int(q);
+    m->next = n;
+    return m;
+  }
 }
 
 static void
@@ -62,14 +68,42 @@ to_str(struct node *n) {
   return str;
 }
 
+static int
+length(struct node *n) {
+  int size;
+  for (size = 0; n; n = n->next) ++size;
+  return size;
+}
+
 static struct node *
-add(struct node *a, struct node *b) {
+pad_left_zero(struct node *n, int size) {
+  struct node *z;
+
+  if (size == 0) return n;
+  z = (struct node *) malloc(sizeof(struct node));
+  z->digit = 0;
+  z->next = n;
+  return pad_left_zero(z, --size);
+}
+
+static struct node *
+add(struct node *a, struct node *b, int first_call) {
   struct node *m;
   struct node *n;
-  struct node *o;
+  int size_a, size_b;
+
+  if (!a && !b) return NULL;
+
+  size_a = length(a);
+  size_b = length(b);
+  if (size_a > size_b) {
+    b = pad_left_zero(b, size_a - size_b);
+  } else if (size_a < size_b) {
+    a = pad_left_zero(a, size_b - size_a);
+  }
 
   if (a->next || b->next) {
-    m = add(a->next ? a->next : a, b->next ? b->next : b);
+    m = add(a->next ? a->next : NULL, b->next ? b->next : NULL, 0);
   } else {
     m =  NULL;
   }
@@ -77,34 +111,22 @@ add(struct node *a, struct node *b) {
   n = build_list_from_int(a->digit + b->digit);
 
   if (m != NULL) {
-    if (m->next) {
-      if (n->next) {
-        n->next->digit += m->digit;
-        n->next->next = m->next;
-      } else {
-        n->digit += m->digit;
-        n->next = m->next;
-      }
-      free(m);
-    } else {
-      if (n->next) {
-        n->next->next = m;
-      } else {
-        n->next = m;
-      }
-    }
-
-    if (n->next && n->next->digit > 9) {
-      n->digit++;
-      n->next->digit -= 10;
-    }
+    n->digit += m->carry;
+    m->carry = 0;
+    n->next = m;
 
     if (n->digit > 9) {
-      o = build_list_from_int(n->digit);
-      o->next->next = n->next;
-      free(n);
-      return o;
+      n->carry = n->digit / 10;
+      n->digit = n->digit % 10;
     }
+  }
+
+  if (first_call && n->carry) {
+    m = build_list_from_int(n->carry);
+    n->digit = n->digit % 10;
+    n->carry = 0;
+    m->next = n;
+    n = m;
   }
 
   return n;
@@ -123,7 +145,7 @@ main(int argc, char **argv) {
 
   a = build_list_from_str(argv[1]);
   b = build_list_from_str(argv[2]);
-  t = add(a, b);
+  t = add(a, b, FIRST_CALL);
 
   fprintf(stdout, "%s + %s = %s\n", to_str(a), to_str(b), to_str(t));
 
