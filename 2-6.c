@@ -72,6 +72,9 @@ find_first_circulated_node(struct node *n) {
   } while (rabbit != tortoise);
 
   rabbit = n;
+
+  if (rabbit == tortoise) return n;
+
   do {
     if (rabbit->next) rabbit = rabbit->next;
     if (tortoise->next) tortoise = tortoise->next;
